@@ -1,6 +1,7 @@
 const { AABB, CubeAABB } = require("./aabb.js");
 const { Vector3 } = require("./vector.js");
 const { HashSet, HashMap } = require('./hash_map.js');
+const { Triangle } = require("./triangle.js");
 
 class VoxelManager {
 
@@ -284,17 +285,67 @@ class VoxelManager {
         //this.triangleAABBs.push({triangle: triangle, AABBs: triangleAABBs});
     }
 
-    voxeliseMesh(mesh) {
-        for (const triangle of mesh.triangles) {
+    buildVoxelsBuffer() {
+        const voxelsBuffer = new Float32Array(this.voxels.length * 3);
+        for (let i = 0; i < this.voxels.length; ++i) {
+            const voxel = this.voxels[i];
+            voxelsBuffer[3 * i + 0] = voxel.x;
+            voxelsBuffer[3 * i + 1] = voxel.y;
+            voxelsBuffer[3 * i + 2] = voxel.z;
+        }
+        return voxelsBuffer;
+    }
+
+    voxeliseTrianglesBuffer(trianglesBuffer) {
+        for (let i = 0; i < trianglesBuffer.length; i += 9) {
+            const v0 = new Vector3(trianglesBuffer[i+0], trianglesBuffer[i+1], trianglesBuffer[i+2]);
+            const v1 = new Vector3(trianglesBuffer[i+3], trianglesBuffer[i+4], trianglesBuffer[i+5]);
+            const v2 = new Vector3(trianglesBuffer[i+6], trianglesBuffer[i+7], trianglesBuffer[i+8]);
+            const triangle = new Triangle(v0, v1, v2);
+            this.voxeliseTriangle(triangle);
+            //console.log("Voxelising", triangle);
+        }
+    }
+
+    *voxeliseTrianglesBufferGenerator(trianglesBuffer) {
+        const steps = 10;
+        const numTriangles = trianglesBuffer.length / 9;
+        const offset = Math.floor(numTriangles / steps);
+
+        for (let step = 0; step < steps; ++step) {
+            for (let i = step * offset; i < (step + 1) * offset; ++i) {
+                const j = i * 9;
+                const v0 = new Vector3(trianglesBuffer[j+0], trianglesBuffer[j+1], trianglesBuffer[j+2]);
+                const v1 = new Vector3(trianglesBuffer[j+3], trianglesBuffer[j+4], trianglesBuffer[j+5]);
+                const v2 = new Vector3(trianglesBuffer[j+6], trianglesBuffer[j+7], trianglesBuffer[j+8]);
+                const triangle = new Triangle(v0, v1, v2);
+                this.voxeliseTriangle(triangle);
+            }
+            yield (step + 1) / steps;
+        }
+        // Cleanup
+        for (let i = offset * steps; i < numTriangles; ++i) {
+            const j = i * 9;
+            const v0 = new Vector3(trianglesBuffer[j+0], trianglesBuffer[j+1], trianglesBuffer[j+2]);
+            const v1 = new Vector3(trianglesBuffer[j+3], trianglesBuffer[j+4], trianglesBuffer[j+5]);
+            const v2 = new Vector3(trianglesBuffer[j+6], trianglesBuffer[j+7], trianglesBuffer[j+8]);
+            const triangle = new Triangle(v0, v1, v2);
             this.voxeliseTriangle(triangle);
         }
+        return;
+    }
+
+    voxeliseMesh(trianglesBuffer) {
+        for (const triangle of mesh.triangles) {
+            this.voxeliseTriangle(triangle);
+        }  this.voxeliseTriangleArray(triangleArray);
     }
 
     setMesh(mesh) {
         this.mesh = mesh;
     }
 
-    * voxeliseMeshGenerator() {
+    *voxeliseMeshGenerator() {
         const steps = 10;
         const numTriangles = this.mesh.triangles.length;
         console.log(numTriangles);

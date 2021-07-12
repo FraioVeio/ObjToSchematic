@@ -70,30 +70,26 @@ $("#voxelBtn").on("click", () => {
         return;
     }
     
-    
-    
     const worker = new Worker("./src/worker.js");
-    worker.postMessage({voxelSize: voxelSize, mesh: loadedMesh});
-    worker.onmessage = ({ data }) => {
+    const triBuf = loadedMesh.trianglesBuffer.buffer;
+    worker.postMessage(triBuf, [triBuf]);
+    worker.onmessage = (e) => {
 
-        if ('progress' in data) {
-            console.log(`received ${data.progress}`);
-            $('#progressBar').css("width", `${data.progress * 100}%`);
-        } else if ('payload' in data) {
-            console.log("received whole");
-            voxelManager.parseDummy(data.payload);
-
+        if ('progress' in e.data) {
+            $('#progressBar').css("width", `${e.data.progress * 100}%`);
+        } else {
+            console.log("Message back at main");
             renderer.clear();
             renderer.setVoxelSize(voxelSize);
-            renderer.registerVoxelMesh(voxelManager, false);
+            //renderer.registerVoxelMesh(voxelManager, false);
+            const voxelsBuffer = new Float32Array(e.data);
+            renderer.registerVoxelsBuffer(voxelsBuffer);
             renderer.compileRegister();
 
             $('#exportBtn').prop('disabled', false);
             //$('#splitBtn').prop('disabled', false);
 
             showToastWithText("Model successfully voxelised", 'success');
-        } else {
-            console.error("Oh shit");
         }
     };
 

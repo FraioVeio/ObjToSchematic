@@ -302,6 +302,19 @@ class Renderer {
         }
     }
 
+    registerVoxelsBuffer(voxelsBuffer) {
+        const numVoxels = voxelsBuffer.length / 3;
+        //const voxels = new Array(numVoxels);
+        for (let i = 0; i < numVoxels; ++i) {
+            const voxel = new Vector3(
+                voxelsBuffer[3 * i + 0],
+                voxelsBuffer[3 * i + 1],
+                voxelsBuffer[3 * i + 2]
+            );
+            this.registerVoxel(voxel, false);
+        }
+    }
+
     registerTriangle(triangle, debug) {
         const data = this._getTriangleData(triangle, debug);
         this._addDataToRegister(data, debug);
@@ -324,6 +337,8 @@ class Renderer {
         }
         
     }
+
+    
 
     _cycleDebugRegister() {
         this._filledDebugRegisters.push(this._debugRegister);

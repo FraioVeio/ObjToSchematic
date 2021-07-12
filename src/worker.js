@@ -3,28 +3,28 @@ const { Triangle } = require('./triangle.js');
 const { Vector3 } = require('./vector.js');
 const { Mesh } = require('./mesh.js');
 
-self.onmessage = ({ data }) => {
-    const voxelSize = data.voxelSize;
-    const meshDummy = data.mesh;
-
-    const mesh = new Mesh();
-    mesh.parseDummy(meshDummy);
+self.onmessage = (e) => {
     
+    const trianglesBuffer = new Float32Array(e.data);
+    console.log("Let's go");
+    
+    //const mesh = new Mesh();
+    //mesh.parseDummy(meshDummy);
+    
+    const voxelSize = 0.1;
     const voxelManager = new VoxelManager(voxelSize);
-    voxelManager.setMesh(mesh);
+    //voxelManager.voxeliseTrianglesBuffer(trianglesBuffer);
 
-    //voxelManager.voxeliseMeshGenerator().next();
-    //self.postMessage(0.5);
-    //voxelManager.voxeliseMeshGenerator().next();
-    const gen = voxelManager.voxeliseMeshGenerator();
+    const generator = voxelManager.voxeliseTrianglesBufferGenerator(trianglesBuffer);
     let isDone = false;
     do {
-        const progress = gen.next();
+        const progress = generator.next();
         isDone = progress.done;
         if (!isDone) {
             self.postMessage({progress: progress.value});
         }
     } while (!isDone);
 
-    self.postMessage({payload: voxelManager});
+    const voxelsBuffer = voxelManager.buildVoxelsBuffer().buffer;
+    self.postMessage(voxelsBuffer, [voxelsBuffer]);
 };

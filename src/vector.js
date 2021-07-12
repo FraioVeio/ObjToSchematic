@@ -6,6 +6,17 @@ class Vector3 {
         this.z = z;
     }
 
+    /*
+        Sending data to Web Workers serialise objects when sending messages
+        between threads. This results in objects losing their functions and
+        prototype. It is necessary to parse them into their correct class.
+    */
+    parseDummy(dummy) {
+        this.x = dummy.x;
+        this.y = dummy.y;
+        this.z = dummy.z;
+    }
+
     toArray() {
         return [this.x, this.y, this.z];
     }

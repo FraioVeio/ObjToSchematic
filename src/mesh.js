@@ -7,7 +7,7 @@ const { Vector3 } = require("./vector.js");
 
 class Mesh {
 
-    constructor(obj_path) {
+    loadObj(obj_path) {
         var wavefrontString = fs.readFileSync(obj_path).toString('utf8');
         var parsedJSON = wavefrontObjParser(wavefrontString);
         var expanded = expandVertexData(parsedJSON, {facesToTriangles: true});
@@ -19,6 +19,27 @@ class Mesh {
         };
 
         this._getTriangles();
+    }
+
+    /*
+        Sending data to Web Workers serialise objects when sending messages
+        between threads. This results in objects losing their functions and
+        prototype. It is necessary to parse them into their correct class.
+    */
+    parseDummy(dummy) {
+        this._data = dummy._data;
+        const numTriangles = dummy.triangles.length;
+        this.triangles = new Array(numTriangles);
+        for (let i = 0; i < numTriangles; ++i) {
+            const triangleDummy = dummy.triangles[i];
+            const v0 = new Vector3();
+            const v1 = new Vector3();
+            const v2 = new Vector3();
+            v0.parseDummy(triangleDummy.v0);
+            v1.parseDummy(triangleDummy.v1);
+            v2.parseDummy(triangleDummy.v2);
+            this.triangles[i] = new Triangle(v0, v1, v2);
+        }
     }
 
     _getTriangles() {

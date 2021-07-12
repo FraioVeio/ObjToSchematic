@@ -41,7 +41,8 @@ $("#loadBtn").on("click", () => {
     }
 
     try {
-        loadedMesh = new Mesh(files[0].path);
+        loadedMesh = new Mesh();
+        loadedMesh.loadObj(files[0].path);
     } catch (err) {
         showToastWithText(`Could not load ${file.name}`, 'danger');
         return;
@@ -62,60 +63,40 @@ $("#loadBtn").on("click", () => {
 
 // VOXELISE BUTTON
 $("#voxelBtn").on("click", () => {
-    const voxelSize = $("#voxelInput").prop('value');
+    const voxelSize = Number($("#voxelInput").prop('value'));
 
     if (voxelSize < 0.001) {
         showToastWithText("Voxel size must be at least 0.001", 'danger');
         return;
     }
     
-    renderer.clear();
-    voxelManager.clear();
-
-    renderer.setVoxelSize(voxelSize);
-    voxelManager.setVoxelSize(voxelSize);
-
-    voxelManager.voxeliseMesh(loadedMesh);
-
-    renderer.clear();
-    renderer.registerVoxelMesh(voxelManager, true);
     
-    /*
-    const mesh = voxelManager.buildMesh();
-    for (const box of mesh) {
-        renderer.registerBox(box.centre, box.size, false);
-    }
-    */
+    
+    const worker = new Worker("./src/worker.js");
+    worker.postMessage({voxelSize: voxelSize, mesh: loadedMesh});
+    worker.onmessage = ({ data }) => {
 
-    /*
-    if (showMeshing) {
-        renderer.setStroke(new Vector3(0.0, 0.0, 0.0));
-        for (const box of mesh) {
-            renderer.registerBox(box.centre, box.size, true);
+        if ('progress' in data) {
+            console.log(`received ${data.progress}`);
+            $('#progressBar').css("width", `${data.progress * 100}%`);
+        } else if ('payload' in data) {
+            console.log("received whole");
+            voxelManager.parseDummy(data.payload);
+
+            renderer.clear();
+            renderer.setVoxelSize(voxelSize);
+            renderer.registerVoxelMesh(voxelManager, false);
+            renderer.compileRegister();
+
+            $('#exportBtn').prop('disabled', false);
+            //$('#splitBtn').prop('disabled', false);
+
+            showToastWithText("Model successfully voxelised", 'success');
+        } else {
+            console.error("Oh shit");
         }
-    }
+    };
 
-    if (showFailedAABBs) {
-        renderer.setStroke(new Vector3(0.0, 0.0, 0.0));
-        for (const box of voxelManager.failedAABBs) {
-            renderer.registerBox(box.centre, box.size, true);
-        }
-    }
-    */
-    $('#exportBtn').prop('disabled', false);
-    $('#splitBtn').prop('disabled', false);
-
-    const height = (voxelManager.maxY - voxelManager.minY) / voxelSize;
-    //console.log(height);
-    if (height >= 256) {
-        showToastWithText("Schematic won't fit in world", 'warning');
-    } else if (height >= 193) {
-        showToastWithText("Schematic won't fit above sea-level", 'warning');
-    } else {
-        showToastWithText("Model successfully voxelised", 'success');
-    }
-
-    renderer.compileRegister();
 });
 
 

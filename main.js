@@ -19,7 +19,8 @@ function createWindow () {
     mainWindow = new BrowserWindow({width, height, webPreferences: {
         nodeIntegration: true,
         contextIsolation: false,
-        enableRemoteModule: true
+        enableRemoteModule: true,
+        nodeIntegrationInWorker: true
     }});
 
     // Load index.html

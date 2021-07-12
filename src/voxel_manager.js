@@ -7,8 +7,8 @@ class VoxelManager {
     constructor(voxelSize) {
         this._voxelSize = voxelSize;
         this.voxels = [];
-        this.triangleAABBs = [];
-        this.failedAABBs = [];
+        //this.triangleAABBs = [];
+        //this.failedAABBs = [];
 
         this.minX = Infinity; // JavaScript crack
         this.minY = Infinity;
@@ -19,13 +19,44 @@ class VoxelManager {
         this.voxelsHash = new HashSet(2048);
     }
 
+    /*
+        Sending data to Web Workers serialise objects when sending messages
+        between threads. This results in objects losing their functions and
+        prototype. It is necessary to parse them into their correct class.
+    */
+    parseDummy(dummy) {
+        this.minX = dummy.minX;
+        this.minY = dummy.minY;
+        this.minZ = dummy.minZ;
+        this.maxX = dummy.maxX;
+        this.maxY = dummy.maxY;
+        this.maxZ = dummy.maxZ;
+
+        // Copy .voxelsHash
+        this.voxelsHash = new HashSet(2048);
+        for (const dummyVector3s of dummy.voxelsHash.bins) {
+            for (const dummyVector3 of dummyVector3s) {
+                const vec = new Vector3(dummyVector3.x, dummyVector3.y, dummyVector3.z);
+                this.voxelsHash.add(vec);
+            }
+        }
+
+        // Copy .voxels
+        const numVoxels = dummy.voxels.length;
+        this.voxels = new Array(numVoxels);
+        for (let i = 0; i < numVoxels; ++i) {
+            const dummyVector3 = dummy.voxels[i];
+            this.voxels[i] = new Vector3(dummyVector3.x, dummyVector3.y, dummyVector3.z);
+        }
+    }
+
     setVoxelSize(voxelSize) {
         this._voxelSize = voxelSize;
     }
 
     _clearVoxels() {
         this.voxels = [];
-        this.failedAABBs = [];
+        //this.failedAABBs = [];
         
         this.minX = Infinity; // JavaScript crack
         this.minY = Infinity;
@@ -38,7 +69,7 @@ class VoxelManager {
     }
 
     clear() {
-        this.triangleAABBs = [];
+        //this.triangleAABBs = [];
         this._clearVoxels();
     }
 
@@ -204,6 +235,7 @@ class VoxelManager {
         return this.mesh;
     }
 
+    /*
     splitVoxels() {
         this._voxelSize /= 2;
         this._clearVoxels();
@@ -225,11 +257,12 @@ class VoxelManager {
 
         this.triangleAABBs = newTriangleAABBs;
     }
+    */
 
     voxeliseTriangle(triangle) {
         const cubeAABB = this._getTriangleCubeAABB(triangle);
 
-        const triangleAABBs = [];
+        //const triangleAABBs = [];
 
         let queue = [cubeAABB];
         while (queue.length > 0) {
@@ -241,20 +274,42 @@ class VoxelManager {
                 } else {
                     // We've reached the voxel level, stop
                     this.addVoxel(aabb.centre);
-                    triangleAABBs.push(aabb);
+                    //triangleAABBs.push(aabb);
                 }
-            } else {
-                this.failedAABBs.push(aabb);
-            }
+            }// else {
+                //this.failedAABBs.push(aabb);
+            //}
         }
 
-        this.triangleAABBs.push({triangle: triangle, AABBs: triangleAABBs});
+        //this.triangleAABBs.push({triangle: triangle, AABBs: triangleAABBs});
     }
 
     voxeliseMesh(mesh) {
         for (const triangle of mesh.triangles) {
             this.voxeliseTriangle(triangle);
         }
+    }
+
+    setMesh(mesh) {
+        this.mesh = mesh;
+    }
+
+    * voxeliseMeshGenerator() {
+        const steps = 10;
+        const numTriangles = this.mesh.triangles.length;
+        console.log(numTriangles);
+        const offset = Math.floor(numTriangles / steps);
+        for (let step = 0; step < steps; step += 1) {
+            for (let i = offset * step; i < offset * (step + 1); ++i) {
+                this.voxeliseTriangle(this.mesh.triangles[i]);
+            }
+            yield (step + 1) / steps;
+        }
+        // Cleanup
+        for (let i = offset * steps; i < numTriangles; ++i) {
+            this.voxeliseTriangle(this.mesh.triangles[i]);
+        }
+        return;
     }
 
 }

@@ -11,8 +11,8 @@ function getShader(filename) {
 const shadedVertexShader = getShader('shaded_vertex.vs');
 const shadedFragmentShader = getShader('shaded_fragment.fs');
 
-const debugVertexShader = getShader('debug_vertex.vs');
-const debugFragmentShader = getShader('debug_fragment.fs');
+const redVertexShader = getShader('red_vertex.vs');
+const redFragmentShader = getShader('red_fragment.fs');
 
 /*
 const shaded_vertex_shader = fs.readFileSync('./shaders/shaded_vertex.vs', 'utf8');
@@ -23,7 +23,7 @@ const debug_fragment_shader = fs.readFileSync('./shaders/debug_fragment.fs', 'ut
 */
 
 const shadedProgram = twgl.createProgramInfo(gl, [shadedVertexShader, shadedFragmentShader]);
-const debugProgram = twgl.createProgramInfo(gl, [debugVertexShader, debugFragmentShader]);
+const redProgram = twgl.createProgramInfo(gl, [redVertexShader, redFragmentShader]);
 
 module.exports.shadedProgram = shadedProgram;
-module.exports.debugProgram = debugProgram;
+module.exports.redProgram = redProgram;

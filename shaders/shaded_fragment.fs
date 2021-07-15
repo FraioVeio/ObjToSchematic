@@ -4,10 +4,10 @@ uniform sampler2D u_texture;
 
 varying vec2 v_texcoord;
 
-//const float kernel[9] = float[](1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
-const int dilate_size = 15;
+const int dilate_size = 10;
 const float kernel_weight = float((dilate_size + 1) * (dilate_size + 1));
 const vec2 pixel_size = vec2(1.0 / 1920.0, 1.0 / 1080.0); // TODO: FIX
+
 
 void main() {
   

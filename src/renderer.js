@@ -29,7 +29,7 @@ class Renderer {
             normal: {numComponents: 3, data: []},
             indices: {numComponents: 3, data: []},
         };
-        const mesh = new Mesh("./resources/suzanne_left.obj");
+        const mesh = new Mesh("./resources/pyramid.obj");
         for (const triangle of mesh.triangles) {
             const data = this._getTriangleData(triangle);
             this._addDataToRegister(data);
@@ -138,33 +138,41 @@ class Renderer {
         this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, this._framebuffer);
         this._gl.viewport(0, 0, this.textureWidth, this.textureHeight);
 
-        this._gl.enable(this._gl.DEPTH_TEST);
+        //this._gl.enable(this._gl.DEPTH_TEST);
         this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
-        this._drawMesh([1.0, 0.0, 0.0], 1.0, true);
+        this._drawMeshFill([1.0, 0.0, 0.0], 1.0, true, [0, 0, 0]);
 
 
         // Render to canvas
         this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);
         this._gl.viewport(0, 0, 1920, 1080);
 
-        this._gl.disable(this._gl.DEPTH_TEST);
+        //this._gl.disable(this._gl.DEPTH_TEST);
         this._drawTextureToScreen();
 
-        this._gl.enable(this._gl.DEPTH_TEST);
+        //this._gl.enable(this._gl.DEPTH_TEST);
         this._gl.clear(this._gl.DEPTH_BUFFER_BIT);
-        this._drawMesh([0.0, 1.0, 0.0], 1.0, true);
+        this._drawMeshLit();
     }
 
-    _drawMesh(colour, scale, fill) {
-        //const buffer = twgl.createBufferInfoFromArrays(this._gl, this._buffer);
-
-        const shader = shaderManager.redProgram;
+    _drawMeshFill(colour) {
+        const shader = shaderManager.fillProgram;
         this._gl.useProgram(shader.program);
         twgl.setBuffersAndAttributes(this._gl, shader, this._buffer);
         twgl.setUniforms(shader, {
             u_fillColour: colour,
-            u_scale: scale,
-            u_fill: fill,
+            u_worldViewProjection: this._camera.getWorldViewProjection()
+        });
+        this._gl.drawElements(this._gl.TRIANGLES, this._buffer.numElements, this._gl.UNSIGNED_SHORT, 0);
+    }
+
+    _drawMeshLit() {
+        const shader = shaderManager.litProgram;
+        this._gl.useProgram(shader.program);
+        twgl.setBuffersAndAttributes(this._gl, shader, this._buffer);
+        twgl.setUniforms(shader, {
+            u_lightWorldPos: [5, 2.5, 0],
+            u_worldInverseTranspose: this._camera.getWorldInverseTranspose(),
             u_worldViewProjection: this._camera.getWorldViewProjection()
         });
         this._gl.drawElements(this._gl.TRIANGLES, this._buffer.numElements, this._gl.UNSIGNED_SHORT, 0);
@@ -173,14 +181,12 @@ class Renderer {
     _drawTextureToScreen() {
         const plane = {
             position: {numComponents: 2, data: [-1, -1, 1, -1, 1, 1, -1, 1]},
-            //position: {numComponents: 2, data: [0, -1, 1, -1, 1, 1, 0, 1]},
             texcoord: {numComponents: 2, data: [0, 0, 1, 0, 1, 1, 0, 1]},
-            //texcoord: {numComponents: 2, data: [0.5, 0, 1, 0, 1, 1, 0.5, 1]},
             indices: [0, 1, 2, 0, 2, 3]
         };
         const buffer = twgl.createBufferInfoFromArrays(this._gl, plane);
 
-        const shader = shaderManager.shadedProgram;
+        const shader = shaderManager.blurProgram;
         this._gl.useProgram(shader.program);
         twgl.setBuffersAndAttributes(this._gl, shader, buffer);
         twgl.setUniforms(shader, {

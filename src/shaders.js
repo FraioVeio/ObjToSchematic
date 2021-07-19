@@ -8,22 +8,19 @@ function getShader(filename) {
     return fs.readFileSync(absPath, 'utf8');
 }
 
-const shadedVertexShader = getShader('shaded_vertex.vs');
-const shadedFragmentShader = getShader('shaded_fragment.fs');
+const blurVertexShader = getShader('blur_vertex.vs');
+const blurFragmentShader = getShader('blur_fragment.fs');
 
-const redVertexShader = getShader('red_vertex.vs');
-const redFragmentShader = getShader('red_fragment.fs');
+const fillVertexShader = getShader('fill_vertex.vs');
+const fillFragmentShader = getShader('fill_fragment.fs');
 
-/*
-const shaded_vertex_shader = fs.readFileSync('./shaders/shaded_vertex.vs', 'utf8');
-const shaded_fragment_shader = fs.readFileSync('./shaders/shaded_fragment.fs', 'utf8');
+const litVertexShader = getShader('lit_vertex.vs');
+const litFragmentShader = getShader('lit_fragment.fs');
 
-const debug_vertex_shader = fs.readFileSync('./shaders/debug_vertex.vs', 'utf8');
-const debug_fragment_shader = fs.readFileSync('./shaders/debug_fragment.fs', 'utf8');
-*/
+const blurProgram = twgl.createProgramInfo(gl, [blurVertexShader, blurFragmentShader]);
+const fillProgram = twgl.createProgramInfo(gl, [fillVertexShader, fillFragmentShader]);
+const litProgram = twgl.createProgramInfo(gl, [litVertexShader, litFragmentShader]);
 
-const shadedProgram = twgl.createProgramInfo(gl, [shadedVertexShader, shadedFragmentShader]);
-const redProgram = twgl.createProgramInfo(gl, [redVertexShader, redFragmentShader]);
-
-module.exports.shadedProgram = shadedProgram;
-module.exports.redProgram = redProgram;
+module.exports.blurProgram = blurProgram;
+module.exports.fillProgram = fillProgram;
+module.exports.litProgram = litProgram;

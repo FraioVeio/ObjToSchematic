@@ -29,7 +29,7 @@ class Renderer {
             normal: {numComponents: 3, data: []},
             indices: {numComponents: 3, data: []},
         };
-        const mesh = new Mesh("./resources/pyramid.obj");
+        const mesh = new Mesh("./resources/suzanne.obj");
         for (const triangle of mesh.triangles) {
             const data = this._getTriangleData(triangle);
             this._addDataToRegister(data);
@@ -134,13 +134,16 @@ class Renderer {
 
     drawScene() {
         
+        const translation = [1.0, 0.0, 0.0];
+        const outlineColour = [0.0, 1.0, 1.0];
+
         // Render to texture
         this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, this._framebuffer);
         this._gl.viewport(0, 0, this.textureWidth, this.textureHeight);
 
-        //this._gl.enable(this._gl.DEPTH_TEST);
+        this._gl.enable(this._gl.DEPTH_TEST);
         this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
-        this._drawMeshFill([1.0, 0.0, 0.0], 1.0, true, [0, 0, 0]);
+        this._drawMeshFill(outlineColour, translation);
 
 
         // Render to canvas
@@ -152,28 +155,32 @@ class Renderer {
 
         //this._gl.enable(this._gl.DEPTH_TEST);
         this._gl.clear(this._gl.DEPTH_BUFFER_BIT);
-        this._drawMeshLit();
+        this._drawMeshLit(translation);
+
+        //this._gl.disable(this._gl.DEPTH_TEST);
+        //this._drawMeshLit([0.0, 0.0, 0.0]);
     }
 
-    _drawMeshFill(colour) {
+    _drawMeshFill(colour, translate) {
         const shader = shaderManager.fillProgram;
         this._gl.useProgram(shader.program);
         twgl.setBuffersAndAttributes(this._gl, shader, this._buffer);
         twgl.setUniforms(shader, {
             u_fillColour: colour,
-            u_worldViewProjection: this._camera.getWorldViewProjection()
+            u_worldViewProjection: this._camera.getWorldViewProjection(),
+            u_translate: translate,
         });
         this._gl.drawElements(this._gl.TRIANGLES, this._buffer.numElements, this._gl.UNSIGNED_SHORT, 0);
     }
 
-    _drawMeshLit() {
+    _drawMeshLit(translate) {
         const shader = shaderManager.litProgram;
         this._gl.useProgram(shader.program);
         twgl.setBuffersAndAttributes(this._gl, shader, this._buffer);
         twgl.setUniforms(shader, {
             u_lightWorldPos: [5, 2.5, 0],
-            u_worldInverseTranspose: this._camera.getWorldInverseTranspose(),
-            u_worldViewProjection: this._camera.getWorldViewProjection()
+            u_worldViewProjection: this._camera.getWorldViewProjection(),
+            u_translate: translate,
         });
         this._gl.drawElements(this._gl.TRIANGLES, this._buffer.numElements, this._gl.UNSIGNED_SHORT, 0);
     }

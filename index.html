@@ -4,12 +4,18 @@
   <head>
     <meta charset="utf8">
     <title>TEST</title>
-    <link rel="stylesheet" href="./styles.css">
     <link rel="stylesheet" href="./src/vendor/bootstrap.css">
+    <link rel="stylesheet" href="./styles.css">
   </head>
 
   <body>
     <canvas id="c" width="1920" height="1080"></canvas>
+
+    <div id="right-click-menu" class="list-group right-click-menu shadow">
+      <button type="button" class="context-menu-button text-light list-group-item list-group-item-action">Voxelise</button>
+      <button type="button" class="context-menu-button text-light list-group-item list-group-item-action">Change block</button>
+      <button type="button" class="context-menu-button text-light list-group-item list-group-item-action">Remove</button>
+    </div>
   </body>
 
   <script src="./src/vendor/jquery-3.6.0.min.js"></script>

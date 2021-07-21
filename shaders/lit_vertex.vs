@@ -1,5 +1,6 @@
 uniform vec3 u_lightWorldPos;
 uniform mat4 u_worldViewProjection;
+uniform vec3 u_translate;
 
 attribute vec4 position;
 attribute vec3 normal;
@@ -16,5 +17,5 @@ void main() {
   //v_colour = vec4(normal_ * lighting, 1.0);
   v_colour = vec4(vec3(lighting), 1.0);
 
-  gl_Position = u_worldViewProjection * vec4(position.xyz, 1.0);
+  gl_Position = u_worldViewProjection * vec4(position.xyz + u_translate, 1.0);
 }

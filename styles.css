@@ -6,3 +6,19 @@ canvas {
   position: absolute;
   background-color: #101214;
 }
+
+.right-click-menu {
+  visibility: hidden;
+  position: absolute;
+  width: 200px;
+  background-color: rgba(50, 50, 50, .5);
+  backdrop-filter: blur(10px);
+}
+
+.context-menu-button {
+  background-color: transparent;
+}
+
+.context-menu-button:hover {
+  background-color: rgba(255, 255, 255, .25);
+}

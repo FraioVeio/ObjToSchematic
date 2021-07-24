@@ -1,4 +1,4 @@
-const gl = document.querySelector("#c").getContext("webgl");
+const gl = document.querySelector("#c").getContext("webgl", {stencil: true});
 
 var currentMouse =  { x: -1, y: -1, buttons: 0 };
 var previousMouse = { x: -1, y: -1, buttons: 0 };

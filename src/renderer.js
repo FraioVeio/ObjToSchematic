@@ -9,9 +9,10 @@ const shaderManager = require('./shaders.js');
 class Renderer {
 
     constructor() {
-        this._gl = document.querySelector("#c").getContext("webgl");
+        this._gl = document.querySelector("#c").getContext("webgl", {stencil: true});
         this._gl.enable(this._gl.DEPTH_TEST);
         this._gl.enable(this._gl.CULL_FACE);
+        this._gl.stencilOp(this._gl.KEEP, this._gl.KEEP, this._gl.REPLACE);
         this._gl.clearColor(0.0, 0.0, 0.0, 0.0);
 
         this._gl.blendFuncSeparate(this._gl.SRC_ALPHA, this._gl.ONE_MINUS_SRC_ALPHA, this._gl.ONE, this._gl.ONE_MINUS_SRC_ALPHA);
@@ -20,8 +21,13 @@ class Renderer {
         this._camera = new ArcballCamera(30, this._gl.canvas.clientWidth / this._gl.canvas.clientHeight, 0.5, 100.0);
         this._registerEvents();
 
-        this._createTexture();
-        this._createFrameBuffer();
+        this._createOutlineTexture();
+        this._createOutlineFramebuffer();
+        
+        this._createSceneTexture();
+        this._createSceneFramebuffer();
+
+        //this._time = 0.0;
 
         this._maxIndex = 0;
         this._register = {
@@ -88,15 +94,15 @@ class Renderer {
         });
     }
 
-    _createTexture() {
+    _createOutlineTexture() {
         // TODO: FIX
         this.textureWidth = 1920;
         this.textureHeight = 1080;
         //this.textureWidth = this._gl.canvas.width;
         //this.textureHeight = this._gl.canvas.height;
 
-        this._texture = this._gl.createTexture();
-        this._gl.bindTexture(this._gl.TEXTURE_2D, this._texture);
+        this._outlineTexture = this._gl.createTexture();
+        this._gl.bindTexture(this._gl.TEXTURE_2D, this._outlineTexture);
         this._gl.texImage2D(
             this._gl.TEXTURE_2D,
             0,
@@ -113,18 +119,63 @@ class Renderer {
         this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_T, this._gl.CLAMP_TO_EDGE);
     }
 
-    _createFrameBuffer() {
-        this._framebuffer = this._gl.createFramebuffer();
-        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, this._framebuffer);
+    _createSceneTexture() {
+        // TODO: FIX
+        this.textureWidth = 1920;
+        this.textureHeight = 1080;
+        //this.textureWidth = this._gl.canvas.width;
+        //this.textureHeight = this._gl.canvas.height;
+
+        this._sceneTexture = this._gl.createTexture();
+        this._gl.bindTexture(this._gl.TEXTURE_2D, this._sceneTexture);
+        this._gl.texImage2D(
+            this._gl.TEXTURE_2D,
+            0,
+            this._gl.RGBA,
+            this.textureWidth,
+            this.textureHeight,
+            0,
+            this._gl.RGBA,
+            this._gl.UNSIGNED_BYTE,
+            null
+        );
+        this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_MIN_FILTER, this._gl.LINEAR);
+        this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_S, this._gl.CLAMP_TO_EDGE);
+        this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_T, this._gl.CLAMP_TO_EDGE);
+    }
+
+    _createOutlineFramebuffer() {
+        this._outlineFramebuffer = this._gl.createFramebuffer();
+        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, this._outlineFramebuffer);
 
         const attachment = this._gl.COLOR_ATTACHMENT0;
         this._gl.framebufferTexture2D(
             this._gl.FRAMEBUFFER,
             attachment,
             this._gl.TEXTURE_2D,
-            this._texture,
+            this._outlineTexture,
             0
         );
+    }
+
+    _createSceneFramebuffer() {
+        this._sceneFramebuffer = this._gl.createFramebuffer();
+        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, this._sceneFramebuffer);
+
+        const attachment = this._gl.COLOR_ATTACHMENT0;
+        this._gl.framebufferTexture2D(
+            this._gl.FRAMEBUFFER,
+            attachment,
+            this._gl.TEXTURE_2D,
+            this._sceneTexture,
+            0
+        );
+
+        const depthBuffer = this._gl.createRenderbuffer();
+        this._gl.bindRenderbuffer(this._gl.RENDERBUFFER, depthBuffer);
+        this._gl.renderbufferStorage(this._gl.RENDERBUFFER,
+            this._gl.DEPTH_COMPONENT16, 1920, 1080);
+        this._gl.framebufferRenderbuffer(this._gl.FRAMEBUFFER, this._gl.DEPTH_ATTACHMENT, this._gl.RENDERBUFFER, depthBuffer);
     }
 
     updateScene() {
@@ -132,33 +183,80 @@ class Renderer {
         this._camera.updateCameraPosition();
     }
 
+    _allowColourDepthChanges(cond) {
+        this._gl.colorMask(cond, cond, cond, cond);
+        this._gl.depthMask(cond);
+    }
+
+
     drawScene() {
-        
-        const translation = [1.0, 0.0, 0.0];
-        const outlineColour = [0.0, 1.0, 1.0];
-
-        // Render to texture
-        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, this._framebuffer);
-        this._gl.viewport(0, 0, this.textureWidth, this.textureHeight);
-
-        this._gl.enable(this._gl.DEPTH_TEST);
-        this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
-        this._drawMeshFill(outlineColour, translation);
-
-
-        // Render to canvas
         this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);
         this._gl.viewport(0, 0, 1920, 1080);
 
-        //this._gl.disable(this._gl.DEPTH_TEST);
-        this._drawTextureToScreen();
+        this._gl.enable(this._gl.DEPTH_TEST);
+        this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT | this._gl.STENCIL_BUFFER_BIT);
+        
+        
+        // Fill the stencil buffer with 0s then add 1s for every fragment of the mesh
+        this._gl.enable(this._gl.STENCIL_TEST);
+        this._gl.stencilFunc(this._gl.ALWAYS, 1, 0xFF);                     // Write 1s in buffer when drawing
+        this._gl.stencilMask(0xFF);                                         // Enable changes to the stencil
+        this._allowColourDepthChanges(false);                               // Disable drawing to colour and depth buffers
+        this._drawOutlinees(false);
+        this._allowColourDepthChanges(true); 
 
-        //this._gl.enable(this._gl.DEPTH_TEST);
-        this._gl.clear(this._gl.DEPTH_BUFFER_BIT);
-        this._drawMeshLit(translation);
+        
+        // Draw outline-object to outline texture
+        this._gl.disable(this._gl.STENCIL_TEST);
+        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, this._outlineFramebuffer);    // Draw to texture
+        //this._gl.viewport(0, 0, this.textureWidth, this.textureHeight);     // TODO: necessary? hasn't changed
+        //this._gl.enable(this._gl.DEPTH_TEST);                               // TODO: necessary? wasn't disabled
+        this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
+        this._drawOutlinees(true);
 
-        //this._gl.disable(this._gl.DEPTH_TEST);
-        //this._drawMeshLit([0.0, 0.0, 0.0]);
+        // Draw scene without stencil to scene texture
+        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, this._sceneFramebuffer);
+        //this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);
+        this._gl.enable(this._gl.DEPTH_TEST); 
+        this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
+        
+        this._drawScene();
+
+        // Draw to screen
+        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null); // Target the output framebuffer
+        this._gl.disable(this._gl.DEPTH_TEST);
+        //this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
+        this._drawSceneTextureToScreen();
+        this._drawOutlineTextureToScreen();
+
+
+        // Draw scene with stencil
+        this._gl.enable(this._gl.STENCIL_TEST);
+        this._gl.stencilFunc(this._gl.EQUAL, 1, 0xFF); // Only draw if stencil == 1
+        this._gl.stencilMask(0x00); // Disable changes to the stencil
+        this._drawSceneTextureToScreen();
+
+        //this._time += 0.25;
+    }
+
+    _drawOutlinees(fill) {
+
+        if (fill) {
+            this._drawMeshFill([1.0, 0.0, 0.0], [0.0, 0.0, 0.0]);
+            this._drawMeshFill([1.0, 0.0, 0.0], [2.0, 0.0, 0.0]);
+        } else {
+            this._drawMeshLit([0, 0, 0]);
+            this._drawMeshFill([1.0, 0.0, 0.0], [2.0, 0.0, 0.0]);
+        }
+        
+    }
+
+    _drawScene() {
+        this._drawMeshLit([-4, 0, 0]);
+        this._drawMeshLit([-2, 0, 0]);
+        this._drawMeshLit([0, 0, 0]);
+        this._drawMeshLit([2, 0, 0]);
+        this._drawMeshLit([4, 0, 0]);
     }
 
     _drawMeshFill(colour, translate) {
@@ -185,7 +283,7 @@ class Renderer {
         this._gl.drawElements(this._gl.TRIANGLES, this._buffer.numElements, this._gl.UNSIGNED_SHORT, 0);
     }
 
-    _drawTextureToScreen() {
+    _drawOutlineTextureToScreen() {
         const plane = {
             position: {numComponents: 2, data: [-1, -1, 1, -1, 1, 1, -1, 1]},
             texcoord: {numComponents: 2, data: [0, 0, 1, 0, 1, 1, 0, 1]},
@@ -197,7 +295,25 @@ class Renderer {
         this._gl.useProgram(shader.program);
         twgl.setBuffersAndAttributes(this._gl, shader, buffer);
         twgl.setUniforms(shader, {
-            u_texture: this._texture
+            u_texture: this._outlineTexture
+            //time: this._time
+        });
+        this._gl.drawElements(this._gl.TRIANGLES, buffer.numElements, this._gl.UNSIGNED_SHORT, 0);
+    }
+
+    _drawSceneTextureToScreen() {
+        const plane = {
+            position: {numComponents: 2, data: [-1, -1, 1, -1, 1, 1, -1, 1]},
+            texcoord: {numComponents: 2, data: [0, 0, 1, 0, 1, 1, 0, 1]},
+            indices: [0, 1, 2, 0, 2, 3]
+        };
+        const buffer = twgl.createBufferInfoFromArrays(this._gl, plane);
+
+        const shader = shaderManager.simpleProgram;
+        this._gl.useProgram(shader.program);
+        twgl.setBuffersAndAttributes(this._gl, shader, buffer);
+        twgl.setUniforms(shader, {
+            u_texture: this._sceneTexture
         });
         this._gl.drawElements(this._gl.TRIANGLES, buffer.numElements, this._gl.UNSIGNED_SHORT, 0);
     }
